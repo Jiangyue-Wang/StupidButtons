@@ -1,0 +1,41 @@
+---
+title: "StupidButtons"
+author: "WangJY"
+date: "2022-11-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## clean data
+```{r eval=FALSE}
+library(dplyr)
+library(readxl)
+library(tidyverse)
+# nie<-read_xlsx("Data-NIE and WANG(1).xlsx",sheet = 1)
+# pra<-read_xlsx("Mobile buttons.xlsx",sheet = 1)
+# lbw<-read_xlsx("Data Lbw.xlsx",sheet = 1)
+# alldata<-bind_rows(nie,pra,lbw)
+# write.csv(alldata,row.names=F,"alldata.csv")
+alldata<-read_csv("alldata.csv")
+summary(alldata)
+```
+
+## create species abundance matrix
+```{r,eval=FALSE}
+alldata <- alldata %>% mutate(ForestType=as.factor(ForestType),Species=as.factor(Species),Elevation=as.factor(Elevation),plotname=as.factor(paste0(ForestType,No.Plot,Elevation)))
+summary(alldata)
+length(unique(alldata$Species))
+spabun<-as.data.frame(matrix(0,nrow=length(unique(alldata$plotname)),ncol=length(unique(alldata$Species))))
+rownames(spabun)<-unique(alldata$plotname)
+colnames(spabun)<-unique(alldata$Species)
+summary(spabun)
+
+for(i in 1:nrow(alldata)){
+  spabun[as.character(alldata$plotname[i]),as.character(alldata$Species[i])]<-alldata$Number[i]
+}
+# write.csv(spabun,"SpeciesAbundance.csv")
+```
+We altogether have `r nrow(spabun)` sites, and `r ncol(spabun)` species. Thus the species abundance matrix consists `r nrow(spabun)` rows and `r ncol(spabun)` columns.
