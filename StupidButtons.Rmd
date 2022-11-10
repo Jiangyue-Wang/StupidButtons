@@ -6,11 +6,11 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE)
 ```
 
 ## clean data
-```{r eval=FALSE}
+```{r }
 library(dplyr)
 library(readxl)
 library(tidyverse)
@@ -20,11 +20,13 @@ library(tidyverse)
 # alldata<-bind_rows(nie,pra,lbw)
 # write.csv(alldata,row.names=F,"alldata.csv")
 alldata<-read_csv("alldata.csv")
+# alldata[alldata$Species=="Rhododendron leptothrium","Species"] <- "Rhododendron_leptothrium"
+# write.csv(alldata,"alldata.csv",row.names=F)
 summary(alldata)
 ```
 
 ## create species abundance matrix
-```{r,eval=FALSE}
+```{r}
 alldata <- alldata %>% mutate(ForestType=as.factor(ForestType),Species=as.factor(Species),Elevation=as.factor(Elevation),plotname=as.factor(paste0(ForestType,No.Plot,Elevation)))
 summary(alldata)
 length(unique(alldata$Species))
@@ -39,3 +41,93 @@ for(i in 1:nrow(alldata)){
 # write.csv(spabun,"SpeciesAbundance.csv")
 ```
 We altogether have `r nrow(spabun)` sites, and `r ncol(spabun)` species. Thus the species abundance matrix consists `r nrow(spabun)` rows and `r ncol(spabun)` columns.
+
+## look at trait
+```{r}
+library(tidyverse)
+trait <- read_csv("dummy_trait.csv")
+summary(trait)
+```
+Trait columns meaning: __LMA__ stands for Leaf mass per area (g m^2), __LL__ stands for Leaf lifespans (longevity, months), __Amass__ stands for Maximum photosynthetic rates per unit mass (nnmol g^-1 s^-1), __Rmass__ stands for Dark respiration rates per unit mass (nnmol g^-1 s^-1), __Nmass__ stands for Leaf nitrogen per unit mass (%), __Pmass__ stands for Leaf phosphorus per unit mass (%), __WD__ stands for Wood density (g cm^-3), __SM__ stands for Seed dry mass (mg).
+
+```{r histogram for trait}
+trait %>%
+  pivot_longer(LMA:SM, names_to = "trait") %>%
+  ggplot() + aes(x=value) +
+  geom_histogram(position = "identity") +
+  facet_wrap(~ trait, scale = "free")
+# transforamtion
+trait2 <- trait |>
+  mutate(logLMA = log(LMA),
+         logLL = log(LL),
+         logAmass = log(Amass),
+         logRmass = log(Rmass),
+         logNmass = log(Nmass),
+         logPmass = log(Pmass),
+         logSM = log(SM)) |>
+  dplyr::select(sp, logLMA, logLL, logAmass, logRmass, logNmass, logPmass, WD, logSM)
+
+trait2 %>%
+  pivot_longer(logLMA:logSM, names_to = "trait") %>%
+  ggplot() + aes(x=value) +
+  geom_histogram(position = "identity") +
+  facet_wrap(~ trait, scale = "free")
+# much normal now
+```
+
+## Diversity indices calculating
+```{r shannon diversity}
+diversity <- data.frame(plot=rownames(spabun))
+diversity$shannon<-vegan::diversity(spabun, index = "shannon")
+
+diversity$No.ind <- apply(spabun,1,sum)
+```
+
+```{r phylogenetic diversity}
+library(picante)
+library(FD)
+phylo <- read.tree("dummy_tree.newick")
+plot(phylo)
+diversity[,c("PD","richness")] <- pd(spabun, phylo)
+diversity[,"MNTD"] <-mntd(spabun, cophenetic(phylo))
+diversity[,"MPD"] <- mpd(spabun, cophenetic(phylo))
+```
+
+```{r trait diversity}
+trait_mat0 <- as.matrix(trait2[, -1])
+rownames(trait_mat0) <- trait2$sp
+# scale
+trait_mat <- scale(trait_mat0)
+
+
+tmp <- trait2 %>%
+  filter(sp %in% colnames(spabun))
+
+res_fd <- dbFD(trait_mat[colnames(spabun), ], spabun)
+
+diversity$FRic <- res_fd$FRic
+diversity$FEVe <- res_fd$FEve
+diversity$FDiv <- res_fd$FDiv
+diversity$FDis <- res_fd$FDis
+diversity$RaoQ <- res_fd$RaoQ
+```
+
+## Diversity pattern across elevation and forest types
+
+Now I have calculated all 
+```{r see pattern}
+library(stringr)
+diversity$Elevation<-as.integer(str_sub(diversity$plot,start = str_length(diversity$plot)-2, end=-1))
+diversity$forest <- as.factor(str_sub(diversity$plot,start = 1, end=str_length(diversity$plot)-4))
+divcor <- cor(diversity[,2:12], use="pairwise.complete.obs", method="pearson") 
+corrplot::corrplot(divcor)
+
+```
+Remove High correlation pairs: RaoQ, FDis
+```{r scatter plot}
+diversity_long <- diversity %>% select(-RaoQ,-FDis) %>% pivot_longer(shannon:FDiv, names_to = "diversityindices") 
+ggplot(diversity_long, aes(x = Elevation, y = value, colour = forest)) + geom_point() + geom_smooth(method = lm) +facet_wrap(~diversityindices,scales = "free") + theme_classic()
+```
+```{r linear regression}
+
+```
