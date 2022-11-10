@@ -106,7 +106,7 @@ tmp <- trait2 %>%
 res_fd <- dbFD(trait_mat[colnames(spabun), ], spabun)
 
 diversity$FRic <- res_fd$FRic
-diversity$FEVe <- res_fd$FEve
+diversity$MPD <- res_fd$MPD
 diversity$FDiv <- res_fd$FDiv
 diversity$FDis <- res_fd$FDis
 diversity$RaoQ <- res_fd$RaoQ
@@ -125,9 +125,94 @@ corrplot::corrplot(divcor)
 ```
 Remove High correlation pairs: RaoQ, FDis
 ```{r scatter plot}
-diversity_long <- diversity %>% select(-RaoQ,-FDis) %>% pivot_longer(shannon:FDiv, names_to = "diversityindices") 
-ggplot(diversity_long, aes(x = Elevation, y = value, colour = forest)) + geom_point() + geom_smooth(method = lm) +facet_wrap(~diversityindices,scales = "free") + theme_classic()
+diversity_long <- diversity %>% pivot_longer(shannon:RaoQ, names_to = "diversityindices")  %>% mutate(diversityindices=factor(diversityindices, levels=c("No.ind","richness","shannon","PD","MPD","MNTD","FRic","FEVe","FDiv","FDis","RaoQ")))
+ggplot(diversity_long, aes(x = Elevation, y = value, colour = forest)) + geom_point() + geom_smooth(method = lm) +facet_wrap(~diversityindices,scales = "free",ncol=3) + theme_classic()
 ```
 ```{r linear regression}
+library(lme4)
+library(lmerTest)
+library(performance)
+ggplot(diversity_long,aes(x=value))+geom_histogram()+facet_wrap(~diversityindices,scale="free",ncol=3)
 
+diversity %>% mutate(MNTD=log(MNTD),FRic=log(FRic),FEVe=(FEVe)^2,FDiv=(FDiv)^2,FDis=log(FDis),RaoQ=log(RaoQ)) %>%pivot_longer(shannon:RaoQ, names_to = "diversityindices")  %>% mutate(diversityindices=factor(diversityindices, levels=c("No.ind","richness","shannon","PD","MPD","MNTD","FRic","FEVe","FDiv","FDis","RaoQ"))) %>% ggplot()+ aes(x = value) + geom_histogram() +facet_wrap(~diversityindices,scales = "free",ncol=3) + theme_classic()
+#good enough now
+
+diversity.trans<-diversity %>% mutate(MNTD=log(MNTD),FRic=log(FRic),FEVe=(FEVe)^2,FDiv=(FDiv)^2,FDis=log(FDis),RaoQ=log(RaoQ))
+
+diversity.trans %>% pivot_longer(shannon:RaoQ, names_to = "diversityindices")  %>% mutate(diversityindices=factor(diversityindices, levels=c("No.ind","richness","shannon","PD","MPD","MNTD","FRic","FEVe","FDiv","FDis","RaoQ"))) %>%ggplot()+aes(x = Elevation, y = value, colour = forest) + geom_point() + geom_smooth(method = lm) +facet_wrap(~diversityindices,scales = "free",ncol=3) + theme_classic()
+
+diversity.trans$Elevation.sq <- (diversity.trans$Elevation)^2
+
+FDivlm1 <- lm(FDiv~Elevation*forest,data=diversity.trans)
+summary(FDivlm1)# significant
+check_model(FDivlm1) # not good enough but make sense
+FDivlm2 <- update(FDivlm1,.~.+Elevation.sq*forest)
+summary(FDivlm2) # not significant
+
+FRiclm1 <- lm(FRic~Elevation*forest,data=diversity.trans)
+summary(FRiclm1) #not significant
+FRiclm2 <- update(FRiclm1, .~.+Elevation.sq*forest)
+summary(FRiclm2) # significant
+check_model(FRiclm2) # diagnostic not good
+
+FEVelm1 <- lm(FEVe~Elevation*forest,data=diversity.trans)
+summary(FEVelm1)
+#not significant
+FEVelm2<-update(FEVelm1, .~.+Elevation.sq*forest)
+summary(FEVelm2)# not significant
+
+FDislm1 <- lm(FDis~Elevation*forest,data=diversity.trans)
+summary(FDislm1)# significanyt
+FDislm2 <-update(FDislm1, .~.+Elevation.sq*forest)
+summary(FDislm2) # very very significant
+check_model(FDislm2) #good
+
+
+RaoQlm1 <-lm(RaoQ~Elevation*forest,data=diversity.trans)
+summary(RaoQlm1) # not significance
+RaoQlm2 <- update(RaoQlm1,.~.+Elevation.sq*forest)
+summary(RaoQlm2) # significant
+check_model(RaoQlm2)# not good
+
+
+MNTDlm1 <- lm(MNTD~Elevation*forest,data=diversity.trans)
+summary(MNTDlm1)
+#not significant
+MNTDlm2 <-update(MNTDlm1,.~.+Elevation)
+MPDlm1 <- lm(MPD~Elevation*forest,data=diversity)
+summary(MPDlm1)
+#not significant
+hist(diversity$shannon)
+shannonlm1 <- lm(shannon~Elevation*forest,data=diversity)
+summary(shannonlm1)
+#not significant
+indlm1 <- lm(No.ind~Elevation*forest, data=diversity)
+summary(indlm1)
+check_model(indlm1) # wrong!!!
+
+indlm2 <- glm(No.ind~Elevation*forest, data=diversity, family = "poisson")
+summary(indlm2)
+check_model(indlm2)
+indlm3 <- glm(No.ind~Elevation, data=diversity, family = "poisson")
+summary(indlm3)
+check_model(indlm3)
+AIC(indlm2,indlm3) # Although AIC lower, indlm3 diagnostic better
+
+
+PDlm1 <- lm(PD~Elevation*forest, data=diversity)
+summary(PDlm1)
+PDlm2 <- lm(PD~Elevation, data=diversity)
+summary(PDlm2)
+AIC(PDlm1,PDlm2)
+anova(PDlm1,PDlm2)
+#just keep elevation
+
+richnesslm1 <- lm(richness~Elevation*forest, data=diversity)
+summary(richnesslm1)
+#not significant
+check_model(richnesslm1)
+richnesslm2 <- glm(richness~Elevation*forest, data=diversity, family = "poisson")
+summary(richnesslm2)
+#not significant
 ```
+Significant models: FDiv~Elevation+forest+Elevation:forest,
