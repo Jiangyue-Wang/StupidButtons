@@ -91,6 +91,7 @@ plot(phylo)
 diversity[,c("PD","richness")] <- pd(spabun, phylo)
 diversity[,"MNTD"] <-mntd(spabun, cophenetic(phylo))
 diversity[,"MPD"] <- mpd(spabun, cophenetic(phylo))
+
 ```
 
 ```{r trait diversity}
@@ -106,10 +107,10 @@ tmp <- trait2 %>%
 res_fd <- dbFD(trait_mat[colnames(spabun), ], spabun)
 
 diversity$FRic <- res_fd$FRic
-diversity$MPD <- res_fd$MPD
 diversity$FDiv <- res_fd$FDiv
 diversity$FDis <- res_fd$FDis
 diversity$RaoQ <- res_fd$RaoQ
+diversity$FEVe <- res_fd$FEve
 ```
 
 ## Diversity pattern across elevation and forest types
@@ -119,11 +120,11 @@ Now I have calculated all
 library(stringr)
 diversity$Elevation<-as.integer(str_sub(diversity$plot,start = str_length(diversity$plot)-2, end=-1))
 diversity$forest <- as.factor(str_sub(diversity$plot,start = 1, end=str_length(diversity$plot)-4))
-divcor <- cor(diversity[,2:12], use="pairwise.complete.obs", method="pearson") 
+divcor <- cor(diversity[,2:12], method="pearson") 
 corrplot::corrplot(divcor)
 
 ```
-Remove High correlation pairs: RaoQ, FDis
+Didn't remove anything
 ```{r scatter plot}
 diversity_long <- diversity %>% pivot_longer(shannon:RaoQ, names_to = "diversityindices")  %>% mutate(diversityindices=factor(diversityindices, levels=c("No.ind","richness","shannon","PD","MPD","MNTD","FRic","FEVe","FDiv","FDis","RaoQ")))
 ggplot(diversity_long, aes(x = Elevation, y = value, colour = forest)) + geom_point() + geom_smooth(method = lm) +facet_wrap(~diversityindices,scales = "free",ncol=3) + theme_classic()
@@ -143,23 +144,88 @@ diversity.trans %>% pivot_longer(shannon:RaoQ, names_to = "diversityindices")  %
 
 diversity.trans$Elevation.sq <- (diversity.trans$Elevation)^2
 
-FDivlm1 <- lm(FDiv~Elevation*forest,data=diversity.trans)
-summary(FDivlm1)# significant
-check_model(FDivlm1) # not good enough but make sense
-FDivlm2 <- update(FDivlm1,.~.+Elevation.sq*forest)
-summary(FDivlm2) # not significant
+##No. ind
+indlm1 <- lm(No.ind~Elevation*forest, data=diversity.trans)
+summary(indlm1) #signidicant
+check_model(indlm1) # wrong!!!
 
+indlm2 <- glm(No.ind~Elevation*forest, data=diversity.trans, family = "poisson")
+summary(indlm2)
+check_model(indlm2)
+indlm3 <- glm(No.ind~Elevation, data=diversity.trans, family = "poisson")
+summary(indlm3)
+check_model(indlm3)
+
+indlm4 <- update(indlm2,.~.+Elevation.sq*forest)
+summary(indlm4) #not siignificant
+
+AIC(indlm2,indlm3) # Although AIC lower, indlm3 diagnostic better
+
+##richness
+richnesslm1 <- lm(richness~Elevation*forest, data=diversity.trans)
+summary(richnesslm1)
+#not significant
+check_model(richnesslm1)# wrong!!!
+richnesslm2 <- glm(richness~Elevation*forest, data=diversity.trans, family = "poisson")
+summary(richnesslm2)
+#not significant
+richnesslm3 <-update(richnesslm2,.~.+Elevation.sq*forest)
+summary(richnesslm3)#not significant
+
+##shannon
+shannonlm1 <- lm(shannon~Elevation*forest,data=diversity.trans)
+summary(shannonlm1)#not significant
+shannonlm2 <-update(shannonlm1,.~.+Elevation.sq*forest)
+summary(shannonlm2)#significant
+check_model(shannonlm2) #fine
+
+##PD
+PDlm1 <- lm(PD~Elevation*forest, data=diversity.trans)
+summary(PDlm1)
+PDlm2 <- lm(PD~Elevation, data=diversity.trans)
+summary(PDlm2)
+PDlm3 <- update(PDlm1,.~.+Elevation.sq*forest)
+summary(PDlm3) #not significant
+AIC(PDlm1,PDlm2)
+anova(PDlm1,PDlm2)
+#just keep elevation
+
+##MPD
+MPDlm1 <- lm(MPD~Elevation*forest,data=diversity.trans)
+summary(MPDlm1)#not significant
+MPDlm2 <- update(MPDlm1,.~.+Elevation.sq*forest)
+summary(MPDlm2)#not significant
+
+##MNTD
+MNTDlm1 <- lm(MNTD~Elevation*forest,data=diversity.trans)
+summary(MNTDlm1)#not significant
+MNTDlm2 <-update(MNTDlm1,.~.+Elevation.sq*forest)
+summary(MNTDlm2)#not significant
+
+##FRic
 FRiclm1 <- lm(FRic~Elevation*forest,data=diversity.trans)
 summary(FRiclm1) #not significant
 FRiclm2 <- update(FRiclm1, .~.+Elevation.sq*forest)
 summary(FRiclm2) # significant
 check_model(FRiclm2) # diagnostic not good
 
+##FEVe
 FEVelm1 <- lm(FEVe~Elevation*forest,data=diversity.trans)
 summary(FEVelm1)
 #not significant
 FEVelm2<-update(FEVelm1, .~.+Elevation.sq*forest)
 summary(FEVelm2)# not significant
+
+##FDiv
+FDivlm1 <- lm(FDiv~Elevation*forest,data=diversity.trans)
+summary(FDivlm1)# significant
+check_model(FDivlm1) # not good enough but make sense
+FDivlm2 <- update(FDivlm1,.~.+Elevation.sq*forest)
+summary(FDivlm2) # not significant
+
+
+
+##FDis
 
 FDislm1 <- lm(FDis~Elevation*forest,data=diversity.trans)
 summary(FDislm1)# significanyt
@@ -168,51 +234,16 @@ summary(FDislm2) # very very significant
 check_model(FDislm2) #good
 
 
+##RaoQ
+
 RaoQlm1 <-lm(RaoQ~Elevation*forest,data=diversity.trans)
 summary(RaoQlm1) # not significance
 RaoQlm2 <- update(RaoQlm1,.~.+Elevation.sq*forest)
 summary(RaoQlm2) # significant
 check_model(RaoQlm2)# not good
 
-
-MNTDlm1 <- lm(MNTD~Elevation*forest,data=diversity.trans)
-summary(MNTDlm1)
-#not significant
-MNTDlm2 <-update(MNTDlm1,.~.+Elevation)
-MPDlm1 <- lm(MPD~Elevation*forest,data=diversity)
-summary(MPDlm1)
-#not significant
-hist(diversity$shannon)
-shannonlm1 <- lm(shannon~Elevation*forest,data=diversity)
-summary(shannonlm1)
-#not significant
-indlm1 <- lm(No.ind~Elevation*forest, data=diversity)
-summary(indlm1)
-check_model(indlm1) # wrong!!!
-
-indlm2 <- glm(No.ind~Elevation*forest, data=diversity, family = "poisson")
-summary(indlm2)
-check_model(indlm2)
-indlm3 <- glm(No.ind~Elevation, data=diversity, family = "poisson")
-summary(indlm3)
-check_model(indlm3)
-AIC(indlm2,indlm3) # Although AIC lower, indlm3 diagnostic better
-
-
-PDlm1 <- lm(PD~Elevation*forest, data=diversity)
-summary(PDlm1)
-PDlm2 <- lm(PD~Elevation, data=diversity)
-summary(PDlm2)
-AIC(PDlm1,PDlm2)
-anova(PDlm1,PDlm2)
-#just keep elevation
-
-richnesslm1 <- lm(richness~Elevation*forest, data=diversity)
-summary(richnesslm1)
-#not significant
-check_model(richnesslm1)
-richnesslm2 <- glm(richness~Elevation*forest, data=diversity, family = "poisson")
-summary(richnesslm2)
-#not significant
 ```
-Significant models: FDiv~Elevation+forest+Elevation:forest,
+
+Significant models: indlm3, shannonlm2, PDlm2, FDivlm1, FDislm2
+
+
