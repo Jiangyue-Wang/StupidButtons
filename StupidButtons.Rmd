@@ -322,5 +322,44 @@ indp+shannonp+PDp+FDivp+FDisp+plot_layout(ncol = 2,guides="collect")
 ```
 
 
+## Functional composition change
+```{r}
+library(vegan)
+
+traitsite <- res_fd2$CWM
+head(traitsite)
+
+
+traitsite$Elevation <- diversity$Elevation
+traitsite$forest <- diversity$forest
+# calculate trait distance
+trait_mat0 <- as.matrix(trait2[, -1])
+rownames(trait_mat0) <- trait2$sp
+trait_mat0[1:5, 1:5]
+trait_mat <- scale(trait_mat0)
+trait_dm <- as.matrix(dist(trait_mat))
+
+pcaall <- prcomp(traitsite[, c("logLMA","logPmass","WD","logNmass")], scale = T) 
+summary(pcaall)
+biplot(pcaall)
+corrplot::corrplot(cor(trait2[,2:9]))
+
+
+library(ggfortify)
+autoplot(pcaall, data = traitsite, colour = 'Elevation',shape="forest",loadings = TRUE, loadings.colour = 'blue',loadings.label = TRUE, loadings.label.size = 3)
+
+
+
+##RDA
+env <- read_csv("env data(1).csv") %>% select(Site,Slope,DistRiver,soil_n,soil_p,soil_moist,Elevation) %>% mutate(Slope=1/Slope)
+corrplot::corrplot(cor(env[,c(2:7)]))
+
+trait.rda <- rda(traitsite[,1:8] ~ Slope+DistRiver+soil_n+soil_p+soil_moist, data=env,scale=T)
+summary(trait.rda)
+plot(trait.rda)
+
+```
+
+
 
 
