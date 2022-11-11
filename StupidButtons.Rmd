@@ -244,6 +244,83 @@ check_model(RaoQlm2)# not good
 
 ```
 
-Significant models: indlm3, shannonlm2, PDlm2, FDivlm1, FDislm2
+Significant models: indlm3, shannonlm2, PDlm2, FDivlm1, FDislm2, last two transformed
+
+```{r predictioin using lm}
+indlm3$call
+check_overdispersion(indlm3) #no overdispersion
+
+indnew <- data.frame(Elevation=rep(seq(500,900,10),2),forest=rep(c("Primary","Secondary"),each=41))
+indnew$Elevation.sq <-(indnew$Elevation)^2
+
+preds <- predict(indlm3, newdata=indnew,type= 'link', se.fit=T)
+indnew$No.ind <- exp(preds$fit)
+indnew$indup <- exp(preds$fit+preds$se.fit*1.96)
+indnew$indlw <- exp(preds$fit-preds$se.fit*1.96)
+
+indp <- ggplot(diversity,aes(x=Elevation,y=No.ind,color=forest))+geom_point()+geom_smooth(data=indnew,aes(x=Elevation, y=No.ind, ymin=indlw, ymax=indup),stat='identity')+theme_classic()
+
+
+
+shannonlm2$call
+
+shannonnew <- data.frame(Elevation=rep(seq(500,900,10),2),forest=rep(c("Primary","Secondary"),each=41))
+shannonnew$Elevation.sq <-(shannonnew$Elevation)^2
+
+preds <- predict(shannonlm2, newdata=shannonnew, se.fit=T)
+shannonnew$shannon <- preds$fit
+shannonnew$shannonup <- preds$fit+preds$se.fit*1.96
+shannonnew$shannonlw <- preds$fit-preds$se.fit*1.96
+
+shannonp <- ggplot(diversity,aes(x=Elevation,y=shannon,color=forest))+geom_point()+geom_smooth(data=shannonnew,aes(x=Elevation, y=shannon, ymin=shannonlw, ymax=shannonup),stat='identity')+theme_classic()
+
+
+
+PDlm2$call
+summary(PDlm2)
+PDnew <- data.frame(Elevation=rep(seq(500,900,10),2),forest=rep(c("Primary","Secondary"),each=41))
+PDnew$Elevation.sq <-(PDnew$Elevation)^2
+
+preds <- predict(PDlm2, newdata=PDnew, se.fit=T)
+PDnew$PD <- preds$fit
+PDnew$PDup <- preds$fit+preds$se.fit*1.96
+PDnew$PDlw <- preds$fit-preds$se.fit*1.96
+
+PDp <- ggplot(diversity,aes(x=Elevation,y=PD,color=forest))+geom_point()+geom_smooth(data=PDnew,aes(x=Elevation, y=PD, ymin=PDlw, ymax=PDup),stat='identity')+theme_classic()
+
+
+FDivlm1$call
+summary(FDivlm1)
+FDivnew <- data.frame(Elevation=rep(seq(500,900,10),2),forest=rep(c("Primary","Secondary"),each=41))
+FDivnew$Elevation.sq <-(FDivnew$Elevation)^2
+
+preds <- predict(FDivlm1, newdata=FDivnew, se.fit=T)
+FDivnew$FDiv <- sqrt(preds$fit)
+FDivnew$FDivup <- sqrt(preds$fit+preds$se.fit*1.96)
+FDivnew$FDivlw <- sqrt(preds$fit-preds$se.fit*1.96)
+
+FDivp <- ggplot(diversity,aes(x=Elevation,y=FDiv,color=forest))+geom_point()+geom_smooth(data=FDivnew,aes(x=Elevation, y=FDiv, ymin=FDivlw, ymax=FDivup),stat='identity')+theme_classic()
+
+
+FDislm2$call
+summary(FDislm2)
+FDisnew <- data.frame(Elevation=rep(seq(500,900,10),2),forest=rep(c("Primary","Secondary"),each=41))
+FDisnew$Elevation.sq <-(FDisnew$Elevation)^2
+
+preds <- predict(FDislm2, newdata=FDisnew, se.fit=T)
+FDisnew$FDis <- exp(preds$fit)
+FDisnew$FDisup <- exp(preds$fit+preds$se.fit*1.96)
+FDisnew$FDislw <- exp(preds$fit-preds$se.fit*1.96)
+
+FDisp <- ggplot(diversity,aes(x=Elevation,y=FDis,color=forest))+geom_point()+geom_smooth(data=FDisnew,aes(x=Elevation, y=FDis, ymin=FDislw, ymax=FDisup),stat='identity')+theme_classic()
+
+
+
+
+library(patchwork)
+indp+shannonp+PDp+FDivp+FDisp+plot_layout(ncol = 2,guides="collect")
+```
+
+
 
 
