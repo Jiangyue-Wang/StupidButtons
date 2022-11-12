@@ -249,7 +249,8 @@ Significant models: indlm3, shannonlm2, PDlm2, FDivlm1, FDislm2, last two transf
 ```{r predictioin using lm}
 indlm3$call
 check_overdispersion(indlm3) #no overdispersion
-
+library(ISLR)
+with(summary(indlm3), 1 - deviance/null.deviance)
 indnew <- data.frame(Elevation=rep(seq(500,900,10),2),forest=rep(c("Primary","Secondary"),each=41))
 indnew$Elevation.sq <-(indnew$Elevation)^2
 
@@ -258,7 +259,11 @@ indnew$No.ind <- exp(preds$fit)
 indnew$indup <- exp(preds$fit+preds$se.fit*1.96)
 indnew$indlw <- exp(preds$fit-preds$se.fit*1.96)
 
-indp <- ggplot(diversity,aes(x=Elevation,y=No.ind,color=forest))+geom_point()+geom_smooth(data=indnew,aes(x=Elevation, y=No.ind, ymin=indlw, ymax=indup),stat='identity')+theme_classic()
+indp <- ggplot(diversity,aes(x=Elevation,y=No.ind,color=forest))+geom_point()+geom_smooth(data=indnew,aes(x=Elevation, y=No.ind, ymin=indlw, ymax=indup),stat='identity')+theme_classic()+ theme(
+panel.background = element_rect(fill = "transparent",colour = NA),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_rect(fill = "transparent",colour = NA))
 
 
 
@@ -272,7 +277,11 @@ shannonnew$shannon <- preds$fit
 shannonnew$shannonup <- preds$fit+preds$se.fit*1.96
 shannonnew$shannonlw <- preds$fit-preds$se.fit*1.96
 
-shannonp <- ggplot(diversity,aes(x=Elevation,y=shannon,color=forest))+geom_point()+geom_smooth(data=shannonnew,aes(x=Elevation, y=shannon, ymin=shannonlw, ymax=shannonup),stat='identity')+theme_classic()
+shannonp <- ggplot(diversity,aes(x=Elevation,y=shannon,color=forest))+geom_point()+geom_smooth(data=shannonnew,aes(x=Elevation, y=shannon, ymin=shannonlw, ymax=shannonup),stat='identity')+theme_classic()+ theme(
+panel.background = element_rect(fill = "transparent",colour = NA),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_rect(fill = "transparent",colour = NA))
 
 
 
@@ -286,7 +295,11 @@ PDnew$PD <- preds$fit
 PDnew$PDup <- preds$fit+preds$se.fit*1.96
 PDnew$PDlw <- preds$fit-preds$se.fit*1.96
 
-PDp <- ggplot(diversity,aes(x=Elevation,y=PD,color=forest))+geom_point()+geom_smooth(data=PDnew,aes(x=Elevation, y=PD, ymin=PDlw, ymax=PDup),stat='identity')+theme_classic()
+PDp <- ggplot(diversity,aes(x=Elevation,y=PD,color=forest))+geom_point()+geom_smooth(data=PDnew,aes(x=Elevation, y=PD, ymin=PDlw, ymax=PDup),stat='identity')+theme_classic()+ theme(
+panel.background = element_rect(fill = "transparent",colour = NA),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_rect(fill = "transparent",colour = NA))
 
 
 FDivlm1$call
@@ -312,13 +325,19 @@ FDisnew$FDis <- exp(preds$fit)
 FDisnew$FDisup <- exp(preds$fit+preds$se.fit*1.96)
 FDisnew$FDislw <- exp(preds$fit-preds$se.fit*1.96)
 
-FDisp <- ggplot(diversity,aes(x=Elevation,y=FDis,color=forest))+geom_point()+geom_smooth(data=FDisnew,aes(x=Elevation, y=FDis, ymin=FDislw, ymax=FDisup),stat='identity')+theme_classic()
+FDisp <- ggplot(diversity,aes(x=Elevation,y=FDis,color=forest))+geom_point()+geom_smooth(data=FDisnew,aes(x=Elevation, y=FDis, ymin=FDislw, ymax=FDisup),stat='identity')+theme_classic()+ theme(
+panel.background = element_rect(fill = "transparent",colour = NA),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_rect(fill = "transparent",colour = NA))
 
 
 
 
 library(patchwork)
-indp+shannonp+PDp+FDivp+FDisp+plot_layout(ncol = 2,guides="collect")
+indp+shannonp+PDp+FDisp+plot_layout(ncol = 4,guides="collect")
+# dir.create("Figures")
+ggsave("Figures/Diversityndices.png",width=9,height=2,dpi=600,units = "in")
 ```
 
 
@@ -326,7 +345,7 @@ indp+shannonp+PDp+FDivp+FDisp+plot_layout(ncol = 2,guides="collect")
 ```{r}
 library(vegan)
 
-traitsite <- res_fd2$CWM
+traitsite <- res_fd$CWM
 head(traitsite)
 
 
@@ -346,17 +365,43 @@ corrplot::corrplot(cor(trait2[,2:9]))
 
 
 library(ggfortify)
-autoplot(pcaall, data = traitsite, colour = 'Elevation',shape="forest",loadings = TRUE, loadings.colour = 'blue',loadings.label = TRUE, loadings.label.size = 3)
-
+autoplot(pcaall, data = traitsite, colour = 'Elevation',shape="forest",size=4,loadings = TRUE, loadings.colour = 'blue',loadings.label = TRUE, loadings.label.size = 3)+theme_light()+ theme(
+panel.background = element_rect(fill = "transparent",colour = NA),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_rect(fill = "transparent",colour = NA))
+ggsave("Figures/TraitPCA.pdf",width=6,height=4.5,dpi=600,units="in")
 
 
 ##RDA
 env <- read_csv("env data(1).csv") %>% select(Site,Slope,DistRiver,soil_n,soil_p,soil_moist,Elevation) %>% mutate(Slope=1/Slope)
 corrplot::corrplot(cor(env[,c(2:7)]))
+env$Elevation.sq<-(env$Elevation)^2
+env$forest <- diversity$forest
 
-trait.rda <- rda(traitsite[,1:8] ~ Slope+DistRiver+soil_n+soil_p+soil_moist, data=env,scale=T)
+
+mod1.rda <- rda(traitsite[,c(1,5:7)] ~ .,data=env[,c(2,3,5,6)],scale=T)
+mod0.rda <- rda(traitsite[,c(1,5:7)] ~ 1, env[,c(2,3,5,6)],scale=T)
+mod.rda.step <- step(mod0.rda, scope = formula(mod1.rda), test = "perm",scale=T)
+mod.rda.step
+
+
+trait.rda <- rda(traitsite[,c(1,5:7)] ~ soil_p+DistRiver+Slope, data=env,scale=T)
 summary(trait.rda)
-plot(trait.rda)
+# plot(trait.rda)
+library(ggvegan)
+sumrda <- as.data.frame(unlist(summary(trait.rda)$sites))
+sumrda$Elevation <- diversity$Elevation
+sumrda$forest <- diversity$forest
+autoplot(trait.rda, data = traitsite, layers = c("biplot"))+ geom_point(data=sumrda,aes(x=RDA1,y=RDA2,color=Elevation,shape=forest),size=4)+theme_light()+ theme(
+panel.background = element_rect(fill = "transparent",colour = NA),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_rect(fill = "transparent",colour = NA))
+ggsave("Figures/traitRDDA.pdf",width=6,height=4.5,dpi=600,units="in")
+
+anova(trait.rda, by="term", perm=2000)
+anova(trait.rda, by="axis", perm=500)
 
 ```
 
